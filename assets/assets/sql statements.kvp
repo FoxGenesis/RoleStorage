@@ -1,0 +1,10 @@
+########## Role Storage ##########
+rolelist_get_all_roles = SELECT MemberID, GuildID, group_concat(Role) as `Roles` from RoleList WHERE MemberID = ? AND GuildId = ? GROUP BY MemberID, GuildID LIMIT 1;
+
+rolelist_insert_role = INSERT IGNORE INTO RoleList (MemberID, GuildID, Role) VALUES (?, ?, ?);
+
+rolelist_remove_guild = DELETE FROM RoleList WHERE GuildID = ?;
+
+rolelist_remove_role_all = DELETE FROM RoleList WHERE MemberID = ? AND GuildID = ?;
+
+rolelist_remove_role = DELETE FROM RoleList WHERE MemberID = ? AND GuildID = ? AND Role = ?;
