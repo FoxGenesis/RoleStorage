@@ -3,10 +3,12 @@
 	<artifactId>RoleStorage</artifactId>
 	<version>0.0.1</version>
 	<groupId>net.foxgenesis.watame</groupId>
-	<parent>
-		<groupId>net.foxgenesis.watame</groupId>
-		<artifactId>Watamebot</artifactId>
-		<version>1.0.0</version>
-		<relativePath>../WatameBot/pom.xml</relativePath>
-	</parent>
+
+	<dependencies>
+		<dependency>
+			<groupId>net.foxgenesis.watame</groupId>
+			<artifactId>watamebot</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
 </project>
