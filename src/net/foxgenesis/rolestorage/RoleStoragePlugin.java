@@ -1,4 +1,4 @@
-package net.foxgenesis.watame.rolestorage;
+package net.foxgenesis.rolestorage;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -7,8 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.foxgenesis.config.fields.BooleanField;
+import net.foxgenesis.watame.ProtectedJDABuilder;
 import net.foxgenesis.watame.WatameBot;
-import net.foxgenesis.watame.WatameBot.ProtectedJDABuilder;
 import net.foxgenesis.watame.plugin.IPlugin;
 import net.foxgenesis.watame.plugin.PluginProperties;
 
@@ -18,7 +18,7 @@ import net.foxgenesis.watame.plugin.PluginProperties;
  * @author Ashley
  *
  */
-@PluginProperties(name = "Role Storage", description = "Stores each users role for safe keeping", version = "0.0.1")
+@PluginProperties(name = "Role Storage", description = "Stores each users role for safe keeping", version = "0.0.1", providesCommands = false)
 public class RoleStoragePlugin implements IPlugin {
 	/**
 	 * Logger
@@ -43,7 +43,9 @@ public class RoleStoragePlugin implements IPlugin {
 	@Override
 	public void preInit() {
 		try {
-			guildListener = new GuildListener();
+			RoleStorageDatabase database = new RoleStorageDatabase();
+			WatameBot.getInstance().getDatabaseManager().register(database);
+			guildListener = new GuildListener(database);
 		} catch (UnsupportedOperationException | SQLException | IOException e) {
 			e.printStackTrace();
 		}
@@ -66,4 +68,5 @@ public class RoleStoragePlugin implements IPlugin {
 
 	@Override
 	public void close() throws Exception { guildListener.close(); }
+
 }

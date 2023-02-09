@@ -1,15 +1,18 @@
-package net.foxgenesis.watame.rolestorage;
+package net.foxgenesis.rolestorage;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Objects;
 
-import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
@@ -18,7 +21,7 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
-import net.foxgenesis.util.ResourceHelper;
+import net.foxgenesis.watame.util.DiscordUtils;
 
 /**
  * Class for listening to role updates in a guild. All role updates are stored
@@ -28,6 +31,12 @@ import net.foxgenesis.util.ResourceHelper;
  *
  */
 public class GuildListener extends ListenerAdapter implements AutoCloseable {
+
+	/**
+	 * Logger
+	 */
+	private static final Logger logger = LoggerFactory.getLogger("Role Storage Listener");
+
 	/**
 	 * Database to use for role storage
 	 */
@@ -40,9 +49,8 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 * @throws SQLException
 	 * @throws IOException
 	 */
-	public GuildListener() throws UnsupportedOperationException, SQLException, IOException {
-		database = new RoleStorageDatabase(this::getDatabase);
-		database.setup();
+	public GuildListener(RoleStorageDatabase database) throws UnsupportedOperationException, SQLException, IOException {
+		this.database = Objects.requireNonNull(database);
 	}
 
 	@Override
@@ -56,31 +64,48 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 		Guild guild = event.getGuild();
 		if (RoleStoragePlugin.enabled.optFrom(guild)) {
 			Member member = event.getMember();
+			Member bot = DiscordUtils.getBotMember(guild);
 
-			guild.modifyMemberRoles(member, database.getAllMemberRolesInGuild(member)).queue();
+			if (bot.hasPermission(Permission.MANAGE_ROLES)) {
+				List<Role> roles = database.getAllMemberRolesInGuild(member, bot::canInteract);
+				logger.debug("Giving roles {} to {} in {}", roles, member, guild);
+				guild.modifyMemberRoles(member, roles).queue();
+			}
 		}
 	}
 
 	@Override
 	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
-		if (RoleStoragePlugin.enabled.optFrom(event.getGuild())) {
-			database.addMemberRoles(event.getMember(), event.getRoles());
+		Guild guild = event.getGuild();
+
+		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+			Member member = event.getMember();
+			List<Role> roles = event.getRoles();
+			
+			logger.debug("Adding roles ({}) for {} in {}", roles, member, guild);
+			database.addMemberRoles(member, roles);
 		}
 	}
 
 	@Override
 	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
-		if (RoleStoragePlugin.enabled.optFrom(event.getGuild())) {
-			database.removeMemberRoles(event.getMember(), event.getRoles());
+		Guild guild = event.getGuild();
+		
+		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+			Member member = event.getMember();
+			List<Role> roles = event.getRoles();
+			
+			logger.debug("Removing roles ({}) for {} in {}", roles, member, guild);
+			database.removeMemberRoles(member, roles);
 		}
 	}
 
 	@Override
 	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
-		Guild guild = event.getGuild();
-		if (RoleStoragePlugin.enabled.optFrom(guild)) {
-			// TODO on guild member leave, set roles if caching is enabled
-		}
+		// Guild guild = event.getGuild();
+		// if (RoleStoragePlugin.enabled.optFrom(guild)) {
+		// // TODO on guild member leave, set roles if caching is enabled
+		// }
 	}
 
 	@Override
@@ -104,22 +129,10 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 		if (RoleStoragePlugin.enabled.optFrom(guild)) {
 			BatchWorker worker = database.getBatchWorker();
 			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles())).onSuccess(v -> worker.close())
-					.onError(err -> worker.close());
-		}
-	}
-
-	/**
-	 * Construct a new link to a database
-	 * 
-	 * @return A {@link DataSource} pointing to an SQL connection
-	 */
-	private DataSource getDatabase() {
-		try {
-			return new HikariDataSource(new HikariConfig(
-					ResourceHelper.getPropertiesResource(this.getClass().getResource("/assets/database.properties"))));
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+					.onError(err -> {
+						logger.error("Error while scaning guild", err);
+						worker.close();
+					});
 		}
 	}
 }

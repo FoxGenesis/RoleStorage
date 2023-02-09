@@ -1,24 +1,24 @@
-package net.foxgenesis.watame.rolestorage;
+package net.foxgenesis.rolestorage;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Supplier;
+import java.util.function.Predicate;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.foxgenesis.watame.rolestorage.BatchWorker.BatchData;
-import net.foxgenesis.watame.sql.AbstractDatabase;
-import net.foxgenesis.watame.sql.DatabaseProperties;
+import net.foxgenesis.database.AbstractDatabase;
+import net.foxgenesis.rolestorage.BatchWorker.BatchData;
+import net.foxgenesis.util.ResourceUtils.ModuleResource;
 
 /**
  * Custom database class used for storing roles of guild members.
@@ -43,23 +43,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	@Nonnull
 	private static final String REMOVE_ROLE_KEY = "rolelist_remove_role";
 
-	/**
-	 * Create a new instance using the provided DataSource and a threshold of
-	 * {@code 1000}.
-	 * <p>
-	 * This constructor is effectively equivalent to <blockquote>
-	 * 
-	 * <pre>
-	 * new RoleStorageDatabase(provider, 1000)
-	 * </pre>
-	 * 
-	 * </blockquote>
-	 * </p>
-	 * 
-	 * @param provider - Provider to create a {@link DataSource} to be used in this
-	 *                 database
-	 */
-	public RoleStorageDatabase(@Nonnull Supplier<DataSource> provider) { this(provider, 1000); }
+	public RoleStorageDatabase() { this(1000); }
 
 	/**
 	 * Create a new instance using the provided DataSource and specified threshold.
@@ -68,9 +52,9 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 *                  database
 	 * @param batchSize - threshold for batch updates
 	 */
-	public RoleStorageDatabase(@Nonnull Supplier<DataSource> provider, int batchSize) {
-		super(new DatabaseProperties(provider, RoleStorageDatabase.class.getResource("/assets/createRoleTable.sql"),
-				RoleStorageDatabase.class.getResource("/assets/sql statements.kvp"), "Role Storage Database"));
+	public RoleStorageDatabase(int batchSize) {
+		super("RoleStorage Database", new ModuleResource("watamebot.rolestorage", "/assets/sql statements.kvp"),
+				new ModuleResource("watamebot.rolestorage", "/assets/createRoleTable.sql"));
 	}
 
 	/**
@@ -80,7 +64,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * @return A {@link List} of {@link Role Roles} for {@code member}
 	 */
 	@CheckForNull
-	public List<Role> getAllMemberRolesInGuild(@Nonnull Member member) {
+	public List<Role> getAllMemberRolesInGuild(@Nonnull Member member, @Nullable Predicate<Role> filter) {
 		Guild guild = Objects.requireNonNull(member).getGuild();
 
 		// Open a new connection with a prepared statement
@@ -104,7 +88,8 @@ public class RoleStorageDatabase extends AbstractDatabase {
 						return null;
 
 					// Split role column and then map them to the role objects of the guild
-					return Arrays.stream(roleCol.split(",")).map(roleStr -> guild.getRoleById(roleStr)).toList();
+					return Arrays.stream(roleCol.split(",")).map(roleStr -> guild.getRoleById(roleStr))
+							.filter(Objects.requireNonNullElse(filter, role -> true)).toList();
 				}
 
 				// No row was present
@@ -120,7 +105,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 */
 	public void removeGuild(@Nonnull Guild guild) {
 		// Open a new connection with a prepared statement
-		callStatement("rolelist_remove_guild", statement -> {
+		prepareStatement("rolelist_remove_guild", statement -> {
 			statement.setLong(1, guild.getIdLong());
 
 			logger.trace(statement.toString());
@@ -136,19 +121,14 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 */
 	public void removeAllMemberRoles(@Nonnull Member member) {
 		// Open a new connection with a prepared statement
-		callStatement("rolelist_remove_role_all", statement -> {
+		prepareStatement("rolelist_remove_role_all", statement -> {
+			statement.setLong(1, member.getIdLong());
+			statement.setLong(2, member.getGuild().getIdLong());
 
-			try {
-				statement.setLong(1, member.getIdLong());
-				statement.setLong(2, member.getGuild().getIdLong());
+			logger.trace(statement.toString());
 
-				logger.trace(statement.toString());
-
-				statement.executeUpdate();
-			} catch (SQLException e) {
-				logger.error("Error while removing guild", e);
-			}
-		});
+			statement.executeUpdate();
+		}, e -> logger.error("Error while removing guild", e));
 	}
 
 	/**
@@ -163,21 +143,17 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 
 		// Open a new connection with a prepared statement
-		callStatement(INSERT_ROLE_KEY, statement -> {
-			try {
-				for (Role role : roles) {
-					statement.setLong(1, member.getIdLong());
-					statement.setLong(2, member.getGuild().getIdLong());
-					statement.setLong(3, role.getIdLong());
-				}
-
-				logger.trace(statement.toString());
-
-				statement.executeBatch();
-			} catch (SQLException e) {
-				logger.error("Error while updating member roles", e);
+		prepareStatement(INSERT_ROLE_KEY, statement -> {
+			for (Role role : roles) {
+				statement.setLong(1, member.getIdLong());
+				statement.setLong(2, member.getGuild().getIdLong());
+				statement.setLong(3, role.getIdLong());
 			}
-		});
+
+			logger.trace(statement.toString());
+
+			statement.executeBatch();
+		}, e -> logger.error("Error while updating member roles", e));
 	}
 
 	/**
@@ -192,21 +168,17 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 
 		// Open a new connection with a prepared statement
-		callStatement(REMOVE_ROLE_KEY, statement -> {
-			try {
-				for (Role role : roles) {
-					statement.setLong(1, member.getIdLong());
-					statement.setLong(2, member.getGuild().getIdLong());
-					statement.setLong(3, role.getIdLong());
-				}
-
-				logger.trace(statement.toString());
-
-				statement.executeBatch();
-			} catch (SQLException e) {
-				logger.error("Error while updating member roles", e);
+		prepareStatement(REMOVE_ROLE_KEY, statement -> {
+			for (Role role : roles) {
+				statement.setLong(1, member.getIdLong());
+				statement.setLong(2, member.getGuild().getIdLong());
+				statement.setLong(3, role.getIdLong());
 			}
-		});
+
+			logger.trace(statement.toString());
+
+			statement.executeBatch();
+		}, e -> logger.error("Error while updating member roles", e));
 	}
 
 	/**
@@ -215,9 +187,21 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * @return A {@link BatchWorker} used to insert/delete roles in mass
 	 */
 	public BatchWorker getBatchWorker() {
-		BatchWorker worker = new BatchWorker(new BatchData<>(this.source, new LinkedList<>(), new LinkedList<>(),
-				() -> assertRawStatement(INSERT_ROLE_KEY), () -> assertRawStatement(INSERT_ROLE_KEY), 1_000));
-		worker.start();
-		return worker;
+		try {
+			BatchWorker worker = new BatchWorker(
+					new BatchData<>(openUnprotectedConnection(), new LinkedList<>(), new LinkedList<>(),
+							() -> getRawStatement(INSERT_ROLE_KEY), () -> getRawStatement(INSERT_ROLE_KEY), 1_000));
+			worker.start();
+			return worker;
+		} catch (Exception e) {
+
+			return null;
+		}
 	}
+
+	@Override
+	public void close() throws Exception {}
+
+	@Override
+	protected void onReady() {}
 }

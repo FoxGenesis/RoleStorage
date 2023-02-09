@@ -1,4 +1,4 @@
-package net.foxgenesis.watame.rolestorage;
+package net.foxgenesis.rolestorage;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,7 +10,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
-import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,7 @@ import net.dv8tion.jda.api.entities.Role;
  *
  */
 public class BatchWorker implements RoleBatchWorker, AutoCloseable {
-	@Nonnull
+
 	private static final Logger logger = LoggerFactory.getLogger("BatchWorker");
 
 	/**
@@ -78,7 +77,7 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	 * Runnable method for worker thread.
 	 */
 	private void run() {
-		try (Connection conn = batchData.source().getConnection();
+		try (Connection conn = batchData.source();
 				PreparedStatement insertStatement = conn.prepareStatement(batchData.insertStatement().get());
 				PreparedStatement removeStatement = conn.prepareStatement(batchData.removeStatement().get())) {
 			logger.debug("Worker ready");
@@ -153,7 +152,7 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	 * @param process      - callback to execute the prepared statement
 	 * @param errorHandler - error handler
 	 */
-	private void processQueue(@Nonnull PreparedStatement statement, @Nonnull Queue<long[]> queue, boolean flush,
+	private void processQueue(PreparedStatement statement, Queue<long[]> queue, boolean flush,
 			@Nonnull StatementConsumer process, Consumer<SQLException> errorHandler) {
 		try {
 			// Check if the queue contains any items along with race conditions
@@ -222,14 +221,16 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	}
 
 	@Override
-	public RoleBatchWorker addMemberRole(Member member, Role role) {
+	@Nonnull
+	public RoleBatchWorker addMemberRole(@Nonnull Member member, @Nonnull Role role) {
 		addToBatch(batchData.insertQueue,
 				new long[] { member.getIdLong(), member.getGuild().getIdLong(), role.getIdLong() });
 		return this;
 	}
 
 	@Override
-	public RoleBatchWorker removeMemberRole(Member member, Role role) {
+	@Nonnull
+	public RoleBatchWorker removeMemberRole(@Nonnull Member member, @Nonnull Role role) {
 		addToBatch(batchData.removeQueue,
 				new long[] { member.getIdLong(), member.getGuild().getIdLong(), role.getIdLong() });
 		return this;
@@ -260,7 +261,7 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	 *
 	 * @param <T> - Any class that extends a {@link Queue}
 	 */
-	public record BatchData<T extends Queue<long[]>> (@Nonnull DataSource source, @Nonnull T insertQueue,
+	public record BatchData<T extends Queue<long[]>> (@Nonnull Connection source, @Nonnull T insertQueue,
 			@Nonnull T removeQueue, Supplier<String> insertStatement, Supplier<String> removeStatement, int threshold) {
 
 		/**

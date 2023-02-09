@@ -1,4 +1,4 @@
-package net.foxgenesis.watame.rolestorage;
+package net.foxgenesis.rolestorage;
 
 import java.util.Collection;
 

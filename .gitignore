@@ -2,3 +2,7 @@
 .settings/
 target/
 token.txt
+/test-deploy-token.txt
+/logs/
+/config/
+.pid
