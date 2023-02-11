@@ -32,7 +32,7 @@ public class RoleStoragePlugin implements IPlugin {
 	 * <b>Default</b> = {@code true} <br>
 	 * <b>Editable</b> = {@code true} <br>
 	 */
-	static final BooleanField enabled = new BooleanField("rolestorage.enabled", guild -> true, true);
+	static final BooleanField enabled = new BooleanField("rolestorage-enabled", guild -> true, true);
 	// ===================================================
 
 	/**

@@ -68,8 +68,10 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 
 			if (bot.hasPermission(Permission.MANAGE_ROLES)) {
 				List<Role> roles = database.getAllMemberRolesInGuild(member, bot::canInteract);
-				logger.debug("Giving roles {} to {} in {}", roles, member, guild);
-				guild.modifyMemberRoles(member, roles).queue();
+				if (!roles.isEmpty()) {
+					logger.debug("Giving roles {} to {} in {}", roles, member, guild);
+					guild.modifyMemberRoles(member, roles).queue();
+				}
 			}
 		}
 	}
@@ -81,7 +83,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 		if (RoleStoragePlugin.enabled.optFrom(guild)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
-			
+
 			logger.debug("Adding roles ({}) for {} in {}", roles, member, guild);
 			database.addMemberRoles(member, roles);
 		}
@@ -90,11 +92,11 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	@Override
 	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
 		Guild guild = event.getGuild();
-		
+
 		if (RoleStoragePlugin.enabled.optFrom(guild)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
-			
+
 			logger.debug("Removing roles ({}) for {} in {}", roles, member, guild);
 			database.removeMemberRoles(member, roles);
 		}
@@ -128,8 +130,13 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	private void scanGuild(Guild guild) {
 		if (RoleStoragePlugin.enabled.optFrom(guild)) {
 			BatchWorker worker = database.getBatchWorker();
-			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles())).onSuccess(v -> worker.close())
-					.onError(err -> {
+			long startTime = System.currentTimeMillis();
+			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles()))
+					.onSuccess(v -> {
+						double end = (System.currentTimeMillis() - startTime) / 1000D;
+						worker.close(); 
+						logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
+					}).onError(err -> {
 						logger.error("Error while scaning guild", err);
 						worker.close();
 					});
