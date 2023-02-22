@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
+import net.foxgenesis.watame.property.IGuildPropertyMapping;
 import net.foxgenesis.watame.util.DiscordUtils;
 
 /**
@@ -62,13 +63,13 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	@Override
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Guild guild = event.getGuild();
-		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			Member bot = DiscordUtils.getBotMember(guild);
 
 			if (bot.hasPermission(Permission.MANAGE_ROLES)) {
 				List<Role> roles = database.getAllMemberRolesInGuild(member, bot::canInteract);
-				if (!roles.isEmpty()) {
+				if (!(roles == null || roles.isEmpty())) {
 					logger.debug("Giving roles {} to {} in {}", roles, member, guild);
 					guild.modifyMemberRoles(member, roles).queue();
 				}
@@ -80,7 +81,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
 		Guild guild = event.getGuild();
 
-		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
 
@@ -93,7 +94,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
 		Guild guild = event.getGuild();
 
-		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
 
@@ -128,18 +129,17 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 * @param guild - Guild to scan
 	 */
 	private void scanGuild(Guild guild) {
-		if (RoleStoragePlugin.enabled.optFrom(guild)) {
+		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
 			BatchWorker worker = database.getBatchWorker();
 			long startTime = System.currentTimeMillis();
-			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles()))
-					.onSuccess(v -> {
-						double end = (System.currentTimeMillis() - startTime) / 1000D;
-						worker.close(); 
-						logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
-					}).onError(err -> {
-						logger.error("Error while scaning guild", err);
-						worker.close();
-					});
+			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles())).onSuccess(v -> {
+				double end = (System.currentTimeMillis() - startTime) / 1000D;
+				worker.close();
+				logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
+			}).onError(err -> {
+				logger.error("Error while scaning guild", err);
+				worker.close();
+			});
 		}
 	}
 }

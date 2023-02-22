@@ -3,15 +3,16 @@
 	<artifactId>RoleStorage</artifactId>
 	<version>0.0.1</version>
 	<groupId>net.foxgenesis.watame</groupId>
-
+	<properties>
+		<project.build.sourceEncoding>ASCII</project.build.sourceEncoding>
+	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>net.foxgenesis.watame</groupId>
 			<artifactId>watamebot</artifactId>
-			<version>1.0.1</version>
+			<version>1.0.5</version>
 		</dependency>
 	</dependencies>
-
 	<build>
 		<plugins>
 			<plugin>

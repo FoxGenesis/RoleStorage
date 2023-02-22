@@ -42,6 +42,8 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 */
 	@Nonnull
 	private static final String REMOVE_ROLE_KEY = "rolelist_remove_role";
+	
+	private final int batchSize;
 
 	public RoleStorageDatabase() { this(1000); }
 
@@ -53,8 +55,9 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * @param batchSize - threshold for batch updates
 	 */
 	public RoleStorageDatabase(int batchSize) {
-		super("RoleStorage Database", new ModuleResource("watamebot.rolestorage", "/assets/sql statements.kvp"),
-				new ModuleResource("watamebot.rolestorage", "/assets/createRoleTable.sql"));
+		super("RoleStorage Database", new ModuleResource("watamebot.rolestorage", "/META-INF/sql statements.kvp"),
+				new ModuleResource("watamebot.rolestorage", "/META-INF/createRoleTable.sql"));
+		this.batchSize = batchSize;
 	}
 
 	/**
@@ -189,8 +192,8 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	public BatchWorker getBatchWorker() {
 		try {
 			BatchWorker worker = new BatchWorker(
-					new BatchData<>(openUnprotectedConnection(), new LinkedList<>(), new LinkedList<>(),
-							() -> getRawStatement(INSERT_ROLE_KEY), () -> getRawStatement(INSERT_ROLE_KEY), 1_000));
+					new BatchData<>(openConnection(), new LinkedList<>(), new LinkedList<>(),
+							() -> getRawStatement(INSERT_ROLE_KEY), () -> getRawStatement(INSERT_ROLE_KEY), batchSize));
 			worker.start();
 			return worker;
 		} catch (Exception e) {
