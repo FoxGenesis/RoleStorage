@@ -9,9 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.dv8tion.jda.api.entities.Guild;
-import net.foxgenesis.property.IPropertyField;
-import net.foxgenesis.watame.ProtectedJDABuilder;
+import net.foxgenesis.property.IProperty;
 import net.foxgenesis.watame.WatameBot;
+import net.foxgenesis.watame.plugin.IEventStore;
 import net.foxgenesis.watame.plugin.Plugin;
 import net.foxgenesis.watame.plugin.PluginConfiguration;
 import net.foxgenesis.watame.property.IGuildPropertyMapping;
@@ -38,8 +38,8 @@ public class RoleStoragePlugin extends Plugin {
 	 */
 	// static final BooleanField enabled = new BooleanField("rolestorage-enabled",
 	// guild -> true, true);
-	static final IPropertyField<String, Guild, IGuildPropertyMapping> enabled = WatameBot.getInstance()
-			.getPropertyProvider().getProperty("rolestorage-enabled");
+	static final IProperty<String, Guild, IGuildPropertyMapping> enabled = WatameBot.INSTANCE.getPropertyProvider()
+			.getProperty("rolestorage_enabled");
 	// ===================================================
 
 	/**
@@ -62,7 +62,7 @@ public class RoleStoragePlugin extends Plugin {
 	protected void preInit() {
 		try {
 			RoleStorageDatabase database = new RoleStorageDatabase(batchSize);
-			WatameBot.getInstance().getDatabaseManager().register(this, database);
+			WatameBot.INSTANCE.getDatabaseManager().register(this, database);
 			guildListener = new GuildListener(database);
 		} catch (UnsupportedOperationException | SQLException | IOException e) {
 			e.printStackTrace();
@@ -70,12 +70,10 @@ public class RoleStoragePlugin extends Plugin {
 	}
 
 	@Override
-	protected void init(ProtectedJDABuilder builder) { builder.addEventListeners(guildListener); }
+	protected void init(IEventStore builder) { builder.registerListeners(this, guildListener); }
 
 	@Override
-	protected void postInit(WatameBot bot) {
-
-	}
+	protected void postInit(WatameBot bot) {}
 
 	@Override
 	protected void onReady(WatameBot bot) {

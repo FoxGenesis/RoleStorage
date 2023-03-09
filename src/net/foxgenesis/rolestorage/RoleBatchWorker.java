@@ -13,7 +13,7 @@ import net.dv8tion.jda.api.entities.Role;
  * @author Ashley
  *
  */
-public interface RoleBatchWorker {
+public interface RoleBatchWorker extends AutoCloseable {
 
 	/**
 	 * Add a role to a guild member in the database.

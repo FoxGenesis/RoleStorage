@@ -18,7 +18,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.foxgenesis.database.AbstractDatabase;
 import net.foxgenesis.rolestorage.BatchWorker.BatchData;
-import net.foxgenesis.util.ResourceUtils.ModuleResource;
+import net.foxgenesis.util.resource.ModuleResource;
 
 /**
  * Custom database class used for storing roles of guild members.

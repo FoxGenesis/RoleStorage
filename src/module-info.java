@@ -5,6 +5,7 @@ module watamebot.rolestorage {
 	requires com.zaxxer.hikari;
 	requires java.sql;
 	requires org.slf4j;
+	requires jsr305;
 	
 	provides net.foxgenesis.watame.plugin.Plugin with net.foxgenesis.rolestorage.RoleStoragePlugin;
 }

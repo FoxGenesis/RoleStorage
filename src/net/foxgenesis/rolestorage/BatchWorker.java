@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.foxgenesis.executor.PrefixedThreadFactory;
 
 /**
  * Class used to store insert/delete batch data and then execute when a
@@ -24,14 +26,17 @@ import net.dv8tion.jda.api.entities.Role;
  * @author Ashley
  *
  */
-public class BatchWorker implements RoleBatchWorker, AutoCloseable {
+public class BatchWorker implements RoleBatchWorker {
 
+	/**
+	 * Logger
+	 */
 	private static final Logger logger = LoggerFactory.getLogger("BatchWorker");
 
 	/**
-	 * Thread ID
+	 * Thread Factory
 	 */
-	private static long ID = 0;
+	private static final ThreadFactory pool = new PrefixedThreadFactory("RoleStorage");
 
 	/**
 	 * Batch data to work with
@@ -70,7 +75,7 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	 */
 	BatchWorker(@Nonnull BatchData<Queue<long[]>> batchData) {
 		this.batchData = Objects.requireNonNull(batchData);
-		this.thread = new Thread(this::run, "BatchWorker Processor " + (++ID));
+		this.thread = pool.newThread(this::run);
 	}
 
 	/**
@@ -261,7 +266,7 @@ public class BatchWorker implements RoleBatchWorker, AutoCloseable {
 	 *
 	 * @param <T> - Any class that extends a {@link Queue}
 	 */
-	public record BatchData<T extends Queue<long[]>> (@Nonnull Connection source, @Nonnull T insertQueue,
+	public record BatchData<T extends Queue<long[]>>(@Nonnull Connection source, @Nonnull T insertQueue,
 			@Nonnull T removeQueue, Supplier<String> insertStatement, Supplier<String> removeStatement, int threshold) {
 
 		/**

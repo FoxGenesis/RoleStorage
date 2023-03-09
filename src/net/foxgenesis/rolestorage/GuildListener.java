@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
 import net.foxgenesis.watame.property.IGuildPropertyMapping;
-import net.foxgenesis.watame.util.DiscordUtils;
 
 /**
  * Class for listening to role updates in a guild. All role updates are stored
@@ -65,7 +64,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 		Guild guild = event.getGuild();
 		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
-			Member bot = DiscordUtils.getBotMember(guild);
+			Member bot = guild.getSelfMember();
 
 			if (bot.hasPermission(Permission.MANAGE_ROLES)) {
 				List<Role> roles = database.getAllMemberRolesInGuild(member, bot::canInteract);
@@ -130,16 +129,20 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 */
 	private void scanGuild(Guild guild) {
 		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
-			BatchWorker worker = database.getBatchWorker();
-			long startTime = System.currentTimeMillis();
-			guild.loadMembers(member -> worker.addMemberRoles(member, member.getRoles())).onSuccess(v -> {
-				double end = (System.currentTimeMillis() - startTime) / 1000D;
-				worker.close();
-				logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
-			}).onError(err -> {
-				logger.error("Error while scaning guild", err);
-				worker.close();
-			});
+			logger.info("Scanning {} for roles...", guild.getName());
+			
+			try (BatchWorker worker = database.getBatchWorker()) {
+				long startTime = System.currentTimeMillis();
+
+				guild.getMemberCache().acceptStream(stream -> {
+					if(guild.getMemberCount() > 1024)
+						stream = stream.parallel();
+					
+					stream.forEach(member -> worker.addMemberRoles(member, member.getRoles()));
+					double end = (System.currentTimeMillis() - startTime) / 1000D;
+					logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
+				});
+			}
 		}
 	}
 }
