@@ -54,10 +54,14 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	}
 
 	@Override
-	public void onGuildJoin(GuildJoinEvent event) { scanGuild(event.getGuild()); }
+	public void onGuildJoin(GuildJoinEvent event) {
+		scanGuild(event.getGuild());
+	}
 
 	@Override
-	public void onGuildLeave(GuildLeaveEvent event) { database.removeGuild(event.getGuild()); }
+	public void onGuildLeave(GuildLeaveEvent event) {
+		database.removeGuild(event.getGuild());
+	}
 
 	@Override
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
@@ -111,7 +115,9 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception { database.close(); }
+	public void close() throws Exception {
+		database.close();
+	}
 
 	/**
 	 * Perform a full scan of all guilds in the cache.
@@ -119,7 +125,13 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 * @param cache - {@link JDA} guild cache
 	 */
 	public void initialScan(SnowflakeCacheView<Guild> cache) {
+		logger.info("Performing initial guild scan");
+
+		long start = System.currentTimeMillis();
 		cache.acceptStream(stream -> stream.forEach(this::scanGuild));
+		double end = (System.currentTimeMillis() - start) / 1000D;
+
+		logger.info("Finished inital scan in {}", "%.2f ms".formatted(end));
 	}
 
 	/**
@@ -128,16 +140,17 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 * @param guild - Guild to scan
 	 */
 	private void scanGuild(Guild guild) {
-		if (RoleStoragePlugin.enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
+		if (RoleStoragePlugin.enabled.get(guild, true, IGuildPropertyMapping::getAsBoolean)) {
 			logger.info("Scanning {} for roles...", guild.getName());
-			
+
 			try (BatchWorker worker = database.getBatchWorker()) {
 				long startTime = System.currentTimeMillis();
 
 				guild.getMemberCache().acceptStream(stream -> {
-					if(guild.getMemberCount() > 1024)
-						stream = stream.parallel();
-					
+					// FIXME WHY WONT U LET ME DO PARALLEL AAAAAAAAAA
+					// if(guild.getMemberCount() > 1024)
+					// stream = stream.parallel();
+
 					stream.forEach(member -> worker.addMemberRoles(member, member.getRoles()));
 					double end = (System.currentTimeMillis() - startTime) / 1000D;
 					logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));

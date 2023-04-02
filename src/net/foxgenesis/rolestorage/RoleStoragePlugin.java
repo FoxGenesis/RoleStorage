@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import org.apache.commons.configuration2.PropertiesConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.configuration2.Configuration;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.foxgenesis.property.IProperty;
@@ -24,10 +22,6 @@ import net.foxgenesis.watame.property.IGuildPropertyMapping;
  */
 @PluginConfiguration(defaultFile = "/META-INF/worker.ini", identifier = "worker", outputFile = "worker.ini")
 public class RoleStoragePlugin extends Plugin {
-	/**
-	 * Logger
-	 */
-	private static final Logger logger = LoggerFactory.getLogger("RoleStorage");
 
 	/**
 	 * A boolean storage field to check if the plugin is enabled for a guild. <br>
@@ -52,16 +46,16 @@ public class RoleStoragePlugin extends Plugin {
 	protected void onPropertiesLoaded(Properties properties) {}
 
 	@Override
-	protected void onConfigurationLoaded(String id, PropertiesConfiguration properties) {
+	protected void onConfigurationLoaded(String id, Configuration properties) {
 		switch (id) {
-		case "worker" -> { batchSize = properties.getInt("batchSize", 1000); }
+			case "worker" -> { batchSize = properties.getInt("batchSize", 1000); }
 		}
 	}
 
 	@Override
 	protected void preInit() {
 		try {
-			RoleStorageDatabase database = new RoleStorageDatabase(batchSize);
+			@SuppressWarnings("resource") RoleStorageDatabase database = new RoleStorageDatabase(batchSize);
 			WatameBot.INSTANCE.getDatabaseManager().register(this, database);
 			guildListener = new GuildListener(database);
 		} catch (UnsupportedOperationException | SQLException | IOException e) {
@@ -70,7 +64,9 @@ public class RoleStoragePlugin extends Plugin {
 	}
 
 	@Override
-	protected void init(IEventStore builder) { builder.registerListeners(this, guildListener); }
+	protected void init(IEventStore builder) {
+		builder.registerListeners(this, guildListener);
+	}
 
 	@Override
 	protected void postInit(WatameBot bot) {}
@@ -78,10 +74,11 @@ public class RoleStoragePlugin extends Plugin {
 	@Override
 	protected void onReady(WatameBot bot) {
 		// Perform initial scan of all guilds in cache
-		logger.info("Performing initial guild scan");
 		guildListener.initialScan(bot.getJDA().getGuildCache());
 	}
 
 	@Override
-	public void close() throws Exception { guildListener.close(); }
+	protected void close() throws Exception {
+		guildListener.close();
+	}
 }
