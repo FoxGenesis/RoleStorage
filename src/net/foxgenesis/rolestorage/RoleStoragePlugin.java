@@ -12,6 +12,7 @@ import net.foxgenesis.watame.WatameBot;
 import net.foxgenesis.watame.plugin.IEventStore;
 import net.foxgenesis.watame.plugin.Plugin;
 import net.foxgenesis.watame.plugin.PluginConfiguration;
+import net.foxgenesis.watame.plugin.SeverePluginException;
 import net.foxgenesis.watame.property.IGuildPropertyMapping;
 
 /**
@@ -59,7 +60,7 @@ public class RoleStoragePlugin extends Plugin {
 			WatameBot.INSTANCE.getDatabaseManager().register(this, database);
 			guildListener = new GuildListener(database);
 		} catch (UnsupportedOperationException | SQLException | IOException e) {
-			e.printStackTrace();
+			throw new SeverePluginException(e, true);
 		}
 	}
 
