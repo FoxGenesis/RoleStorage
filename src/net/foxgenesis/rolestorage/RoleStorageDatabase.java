@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import net.dv8tion.jda.api.entities.Guild;
@@ -32,7 +29,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * <br>
 	 * {@value}
 	 */
-	@Nonnull
+
 	private static final String INSERT_ROLE_KEY = "rolelist_insert_role";
 
 	/**
@@ -40,12 +37,14 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * <br>
 	 * {@value}
 	 */
-	@Nonnull
+
 	private static final String REMOVE_ROLE_KEY = "rolelist_remove_role";
-	
+
 	private final int batchSize;
 
-	public RoleStorageDatabase() { this(1000); }
+	public RoleStorageDatabase() {
+		this(1000);
+	}
 
 	/**
 	 * Create a new instance using the provided DataSource and specified threshold.
@@ -64,10 +63,11 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * Retrieve all role entries for a guld member.
 	 * 
 	 * @param member - guild member to retrieve roles for
+	 * 
 	 * @return A {@link List} of {@link Role Roles} for {@code member}
 	 */
-	@CheckForNull
-	public List<Role> getAllMemberRolesInGuild(@Nonnull Member member, @Nullable Predicate<Role> filter) {
+
+	public List<Role> getAllMemberRolesInGuild(Member member, Predicate<Role> filter) {
 		Guild guild = Objects.requireNonNull(member).getGuild();
 
 		// Open a new connection with a prepared statement
@@ -98,7 +98,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 				// No row was present
 				return null;
 			}
-		}, error -> logger.error("Error while getting member roles", error));
+		}, error -> logger.error("Error while getting member roles", error)).orElse(List.of());
 	}
 
 	/**
@@ -106,7 +106,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * 
 	 * @param guild - guild to remove
 	 */
-	public void removeGuild(@Nonnull Guild guild) {
+	public void removeGuild(Guild guild) {
 		// Open a new connection with a prepared statement
 		prepareStatement("rolelist_remove_guild", statement -> {
 			statement.setLong(1, guild.getIdLong());
@@ -122,7 +122,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * 
 	 * @param member - guild member to remove all roles from
 	 */
-	public void removeAllMemberRoles(@Nonnull Member member) {
+	public void removeAllMemberRoles(Member member) {
 		// Open a new connection with a prepared statement
 		prepareStatement("rolelist_remove_role_all", statement -> {
 			statement.setLong(1, member.getIdLong());
@@ -139,9 +139,10 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * 
 	 * @param member - member to add roles to
 	 * @param roles  - a list of roles to add
+	 * 
 	 * @throws IllegalArgumentException If {@code roles.size() < 0}
 	 */
-	public void addMemberRoles(@Nonnull Member member, @Nonnull Collection<Role> roles) {
+	public void addMemberRoles(Member member, Collection<Role> roles) {
 		if (roles.size() < 0)
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 
@@ -164,9 +165,10 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 * 
 	 * @param member - member to remove roles from
 	 * @param roles  - a list of roles to remove
+	 * 
 	 * @throws IllegalArgumentException If {@code roles.size() < 0}
 	 */
-	public void removeMemberRoles(@Nonnull Member member, @Nonnull Collection<Role> roles) {
+	public void removeMemberRoles(Member member, Collection<Role> roles) {
 		if (roles.size() < 0)
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 

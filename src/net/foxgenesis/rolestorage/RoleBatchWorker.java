@@ -2,8 +2,6 @@ package net.foxgenesis.rolestorage;
 
 import java.util.Collection;
 
-import javax.annotation.Nonnull;
-
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 
@@ -20,30 +18,33 @@ public interface RoleBatchWorker extends AutoCloseable {
 	 * 
 	 * @param member - member to add role to
 	 * @param role   - role to insert
+	 * 
 	 * @return This instance used for chaining
 	 */
-	@Nonnull
-	public RoleBatchWorker addMemberRole(@Nonnull Member member, @Nonnull Role role);
+
+	public RoleBatchWorker addMemberRole(Member member, Role role);
 
 	/**
 	 * Remove a role from a guild member in the database.
 	 * 
 	 * @param member - member to remove role from
 	 * @param role   - role to remove
+	 * 
 	 * @return This instance used for chaining
 	 */
-	@Nonnull
-	public RoleBatchWorker removeMemberRole(@Nonnull Member member, @Nonnull Role role);
+
+	public RoleBatchWorker removeMemberRole(Member member, Role role);
 
 	/**
 	 * Add roles to a guild member in the database.
 	 * 
 	 * @param member  - member to add roles to
 	 * @param roleIDs - a collection of roles to add to the member
+	 * 
 	 * @return This instance used for chaining
 	 */
-	@Nonnull
-	public default RoleBatchWorker addMemberRoles(@Nonnull Member member, @Nonnull Collection<Role> roleIDs) {
+
+	public default RoleBatchWorker addMemberRoles(Member member, Collection<Role> roleIDs) {
 		for (Role role : roleIDs)
 			addMemberRole(member, role);
 		return this;
@@ -54,10 +55,11 @@ public interface RoleBatchWorker extends AutoCloseable {
 	 * 
 	 * @param member  - member to remove roles from
 	 * @param roleIDs - a collection of roles to remove from the member
+	 * 
 	 * @return This instance used for chaining
 	 */
-	@Nonnull
-	public default RoleBatchWorker removeMemberRoles(@Nonnull Member member, @Nonnull Collection<Role> roleIDs) {
+
+	public default RoleBatchWorker removeMemberRoles(Member member, Collection<Role> roleIDs) {
 		for (Role role : roleIDs)
 			removeMemberRole(member, role);
 		return this;

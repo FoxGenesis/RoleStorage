@@ -10,8 +10,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import javax.annotation.Nonnull;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,31 +39,31 @@ public class BatchWorker implements RoleBatchWorker {
 	/**
 	 * Batch data to work with
 	 */
-	@Nonnull
+
 	private final BatchData<Queue<long[]>> batchData;
 
 	/**
 	 * Worker thread
 	 */
-	@Nonnull
+
 	private final Thread thread;
 
 	/**
 	 * Conditional for whether the worker thread is running or not
 	 */
-	@Nonnull
+
 	private AtomicBoolean running = new AtomicBoolean();
 
 	/**
 	 * Conditional for whether the worker thread is currently processing the queues
 	 */
-	@Nonnull
+
 	private AtomicBoolean processing = new AtomicBoolean(false);
 
 	/**
 	 * Conditional for whether the queues should be flushed
 	 */
-	@Nonnull
+
 	private AtomicBoolean flush = new AtomicBoolean();
 
 	/**
@@ -73,7 +71,7 @@ public class BatchWorker implements RoleBatchWorker {
 	 * 
 	 * @param batchData - data holder to be used
 	 */
-	BatchWorker(@Nonnull BatchData<Queue<long[]>> batchData) {
+	BatchWorker(BatchData<Queue<long[]>> batchData) {
 		this.batchData = Objects.requireNonNull(batchData);
 		this.thread = pool.newThread(this::run);
 	}
@@ -158,7 +156,7 @@ public class BatchWorker implements RoleBatchWorker {
 	 * @param errorHandler - error handler
 	 */
 	private void processQueue(PreparedStatement statement, Queue<long[]> queue, boolean flush,
-			@Nonnull StatementConsumer process, Consumer<SQLException> errorHandler) {
+			StatementConsumer process, Consumer<SQLException> errorHandler) {
 		try {
 			// Check if the queue contains any items along with race conditions
 			if (queue.size() > 0)
@@ -201,7 +199,9 @@ public class BatchWorker implements RoleBatchWorker {
 
 		thread.start();
 
-		while (!running.get()) { Thread.onSpinWait(); }
+		while (!running.get()) {
+			Thread.onSpinWait();
+		}
 	}
 
 	@Override
@@ -226,16 +226,16 @@ public class BatchWorker implements RoleBatchWorker {
 	}
 
 	@Override
-	@Nonnull
-	public RoleBatchWorker addMemberRole(@Nonnull Member member, @Nonnull Role role) {
+
+	public RoleBatchWorker addMemberRole(Member member, Role role) {
 		addToBatch(batchData.insertQueue,
 				new long[] { member.getIdLong(), member.getGuild().getIdLong(), role.getIdLong() });
 		return this;
 	}
 
 	@Override
-	@Nonnull
-	public RoleBatchWorker removeMemberRole(@Nonnull Member member, @Nonnull Role role) {
+
+	public RoleBatchWorker removeMemberRole(Member member, Role role) {
 		addToBatch(batchData.removeQueue,
 				new long[] { member.getIdLong(), member.getGuild().getIdLong(), role.getIdLong() });
 		return this;
@@ -266,22 +266,26 @@ public class BatchWorker implements RoleBatchWorker {
 	 *
 	 * @param <T> - Any class that extends a {@link Queue}
 	 */
-	public record BatchData<T extends Queue<long[]>>(@Nonnull Connection source, @Nonnull T insertQueue,
-			@Nonnull T removeQueue, Supplier<String> insertStatement, Supplier<String> removeStatement, int threshold) {
+	public record BatchData<T extends Queue<long[]>>(Connection source, T insertQueue, T removeQueue,
+			Supplier<String> insertStatement, Supplier<String> removeStatement, int threshold) {
 
 		/**
 		 * Get the total number of items held by this instance.
 		 * 
 		 * @return The sum of both queues
 		 */
-		public int size() { return insertQueue.size() + removeQueue.size(); }
+		public int size() {
+			return insertQueue.size() + removeQueue.size();
+		}
 
 		/**
 		 * Checks if there are no items contained by this instance.
 		 * 
 		 * @return Returns {@code true} if {@link #size()} is equal to {@code 0}.
 		 */
-		public boolean isEmpty() { return size() == 0; }
+		public boolean isEmpty() {
+			return size() == 0;
+		}
 
 		/**
 		 * Checks if the number of items contained within this instance has reached the
@@ -290,7 +294,9 @@ public class BatchWorker implements RoleBatchWorker {
 		 * @return Returns {@code true} when {@link #size()} is greater than or equal to
 		 *         the threshold
 		 */
-		public boolean thresholdReached() { return size() >= threshold; }
+		public boolean thresholdReached() {
+			return size() >= threshold;
+		}
 	}
 
 	@FunctionalInterface
