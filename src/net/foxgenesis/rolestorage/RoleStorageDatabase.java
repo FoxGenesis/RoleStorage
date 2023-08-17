@@ -1,6 +1,7 @@
 package net.foxgenesis.rolestorage;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -71,34 +72,39 @@ public class RoleStorageDatabase extends AbstractDatabase {
 		Guild guild = Objects.requireNonNull(member).getGuild();
 
 		// Open a new connection with a prepared statement
-		return mapStatement("rolelist_get_all_roles", statement -> {
-			statement.setLong(1, member.getIdLong());
-			statement.setLong(2, guild.getIdLong());
+		try {
+			return mapStatement("rolelist_get_all_roles", statement -> {
+				statement.setLong(1, member.getIdLong());
+				statement.setLong(2, guild.getIdLong());
 
-			logger.trace(statement.toString());
+				logger.trace(statement.toString());
 
-			// Execute query
-			try (ResultSet result = statement.executeQuery()) {
+				// Execute query
+				try (ResultSet result = statement.executeQuery()) {
 
-				// Get first row if present
-				if (result.next()) {
+					// Get first row if present
+					if (result.next()) {
 
-					// Get roles column
-					String roleCol = result.getString("Roles");
+						// Get roles column
+						String roleCol = result.getString("Roles");
 
-					// If empty or column wasn't found then return null
-					if (roleCol == null || roleCol.isEmpty())
-						return null;
+						// If empty or column wasn't found then return null
+						if (roleCol == null || roleCol.isEmpty())
+							return null;
 
-					// Split role column and then map them to the role objects of the guild
-					return Arrays.stream(roleCol.split(",")).map(roleStr -> guild.getRoleById(roleStr))
-							.filter(Objects.requireNonNullElse(filter, role -> true)).toList();
+						// Split role column and then map them to the role objects of the guild
+						return Arrays.stream(roleCol.split(",")).map(roleStr -> guild.getRoleById(roleStr))
+								.filter(Objects.requireNonNullElse(filter, role -> true)).toList();
+					}
+
+					// No row was present
+					return null;
 				}
-
-				// No row was present
-				return null;
-			}
-		}, error -> logger.error("Error while getting member roles", error)).orElse(List.of());
+			}).orElse(List.of());
+		} catch (SQLException e) {
+			logger.error("Error while getting member roles", e);
+			return null;
+		}
 	}
 
 	/**
@@ -108,13 +114,17 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 */
 	public void removeGuild(Guild guild) {
 		// Open a new connection with a prepared statement
-		prepareStatement("rolelist_remove_guild", statement -> {
-			statement.setLong(1, guild.getIdLong());
+		try {
+			prepareStatement("rolelist_remove_guild", statement -> {
+				statement.setLong(1, guild.getIdLong());
 
-			logger.trace(statement.toString());
+				logger.trace(statement.toString());
 
-			statement.executeUpdate();
-		}, error -> logger.error("Error while removing guild", error));
+				statement.executeUpdate();
+			});
+		} catch (SQLException e) {
+			logger.error("Error while removing guild", e);
+		}
 	}
 
 	/**
@@ -124,14 +134,18 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	 */
 	public void removeAllMemberRoles(Member member) {
 		// Open a new connection with a prepared statement
-		prepareStatement("rolelist_remove_role_all", statement -> {
-			statement.setLong(1, member.getIdLong());
-			statement.setLong(2, member.getGuild().getIdLong());
+		try {
+			prepareStatement("rolelist_remove_role_all", statement -> {
+				statement.setLong(1, member.getIdLong());
+				statement.setLong(2, member.getGuild().getIdLong());
 
-			logger.trace(statement.toString());
+				logger.trace(statement.toString());
 
-			statement.executeUpdate();
-		}, e -> logger.error("Error while removing guild", e));
+				statement.executeUpdate();
+			});
+		} catch (SQLException e) {
+			logger.error("Error while removing guild", e);
+		}
 	}
 
 	/**
@@ -147,17 +161,21 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 
 		// Open a new connection with a prepared statement
-		prepareStatement(INSERT_ROLE_KEY, statement -> {
-			for (Role role : roles) {
-				statement.setLong(1, member.getIdLong());
-				statement.setLong(2, member.getGuild().getIdLong());
-				statement.setLong(3, role.getIdLong());
-			}
+		try {
+			prepareStatement(INSERT_ROLE_KEY, statement -> {
+				for (Role role : roles) {
+					statement.setLong(1, member.getIdLong());
+					statement.setLong(2, member.getGuild().getIdLong());
+					statement.setLong(3, role.getIdLong());
+				}
 
-			logger.trace(statement.toString());
+				logger.trace(statement.toString());
 
-			statement.executeBatch();
-		}, e -> logger.error("Error while updating member roles", e));
+				statement.executeBatch();
+			});
+		} catch (SQLException e) {
+			logger.error("Error while updating member roles", e);
+		}
 	}
 
 	/**
@@ -173,17 +191,21 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			throw new IllegalArgumentException("Unable to use empty list of roles");
 
 		// Open a new connection with a prepared statement
-		prepareStatement(REMOVE_ROLE_KEY, statement -> {
-			for (Role role : roles) {
-				statement.setLong(1, member.getIdLong());
-				statement.setLong(2, member.getGuild().getIdLong());
-				statement.setLong(3, role.getIdLong());
-			}
+		try {
+			prepareStatement(REMOVE_ROLE_KEY, statement -> {
+				for (Role role : roles) {
+					statement.setLong(1, member.getIdLong());
+					statement.setLong(2, member.getGuild().getIdLong());
+					statement.setLong(3, role.getIdLong());
+				}
 
-			logger.trace(statement.toString());
+				logger.trace(statement.toString());
 
-			statement.executeBatch();
-		}, e -> logger.error("Error while updating member roles", e));
+				statement.executeBatch();
+			});
+		} catch (SQLException e) {
+			logger.error("Error while updating member roles", e);
+		}
 	}
 
 	/**

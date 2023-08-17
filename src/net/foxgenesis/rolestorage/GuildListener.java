@@ -1,9 +1,13 @@
 package net.foxgenesis.rolestorage;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
+
+import net.foxgenesis.property.PropertyMapping;
+import net.foxgenesis.property.PropertyType;
+import net.foxgenesis.watame.plugin.Plugin;
+import net.foxgenesis.watame.property.PluginProperty;
+import net.foxgenesis.watame.property.PluginPropertyProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +25,6 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
-import net.foxgenesis.property.IProperty;
-import net.foxgenesis.watame.WatameBot;
-import net.foxgenesis.watame.property.IGuildPropertyMapping;
 
 /**
  * Class for listening to role updates in a guild. All role updates are stored
@@ -39,8 +40,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 */
 	private static final Logger logger = LoggerFactory.getLogger("Role Storage Listener");
 
-	private static final IProperty<String, Guild, IGuildPropertyMapping> enabled = WatameBot.INSTANCE
-			.getPropertyProvider().getProperty("rolestorage_enabled");
+	private PluginProperty enabled;
 
 	/**
 	 * Database to use for role storage
@@ -49,13 +49,14 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 
 	/**
 	 * Construct a new listener to listen to guild updates.
-	 * 
-	 * @throws UnsupportedOperationException
-	 * @throws SQLException
-	 * @throws IOException
 	 */
-	public GuildListener(RoleStorageDatabase database) throws UnsupportedOperationException, SQLException, IOException {
+	public GuildListener(Plugin plugin, PluginPropertyProvider provider, RoleStorageDatabase database) {
 		this.database = Objects.requireNonNull(database);
+		enabled = provider.upsertProperty(plugin, "enabled", true, PropertyType.NUMBER);
+	}
+	
+	void setPropertys(PluginProperty enabled) {
+		this.enabled = enabled;
 	}
 
 	@Override
@@ -71,7 +72,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	@Override
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Guild guild = event.getGuild();
-		if (enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
+		if (enabled.get(guild, () -> false, PropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			Member bot = guild.getSelfMember();
 
@@ -89,7 +90,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
 		Guild guild = event.getGuild();
 
-		if (enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
+		if (enabled.get(guild, () -> false, PropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
 
@@ -102,7 +103,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
 		Guild guild = event.getGuild();
 
-		if (enabled.get(guild, false, IGuildPropertyMapping::getAsBoolean)) {
+		if (enabled.get(guild, () -> false, PropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
 			List<Role> roles = event.getRoles();
 
@@ -145,7 +146,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 * @param guild - Guild to scan
 	 */
 	private void scanGuild(Guild guild) {
-		if (enabled.get(guild, true, IGuildPropertyMapping::getAsBoolean)) {
+		if (enabled.get(guild, () -> false, PropertyMapping::getAsBoolean)) {
 			logger.info("Scanning {} for roles...", guild.getName());
 
 			try (BatchWorker worker = database.getBatchWorker()) {
