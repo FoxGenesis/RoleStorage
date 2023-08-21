@@ -1,8 +1,6 @@
 package net.foxgenesis.rolestorage;
 
-import java.util.Map;
-import java.util.Properties;
-
+import net.foxgenesis.util.resource.ConfigType;
 import net.foxgenesis.watame.WatameBot;
 import net.foxgenesis.watame.plugin.IEventStore;
 import net.foxgenesis.watame.plugin.Plugin;
@@ -17,7 +15,7 @@ import org.apache.commons.configuration2.Configuration;
  * @author Ashley
  *
  */
-@PluginConfiguration(defaultFile = "/META-INF/worker.ini", identifier = "worker", outputFile = "worker.ini")
+@PluginConfiguration(defaultFile = "/META-INF/worker.ini", identifier = "worker", outputFile = "worker.ini", type = ConfigType.INI)
 public class RoleStoragePlugin extends Plugin {
 
 	/**
@@ -25,15 +23,20 @@ public class RoleStoragePlugin extends Plugin {
 	 */
 	private GuildListener guildListener;
 	private RoleStorageDatabase database;
-	private int batchSize = 1000;
+	private final int batchSize;
 
-	@Override
-	protected void onConstruct(Properties meta, Map<String, Configuration> configs) {
-		for (String id : configs.keySet()) {
+	public RoleStoragePlugin() {
+		super();
+		int size = 1000;
+
+		for (String id : configurationKeySet()) {
+			Configuration config = getConfiguration(id);
 			switch (id) {
-				case "worker" -> { batchSize = configs.get(id).getInt("batchSize", 1000); }
+				case "worker" -> { size = config.getInt("batchSize", size); }
 			}
 		}
+
+		this.batchSize = size;
 	}
 
 	@Override
