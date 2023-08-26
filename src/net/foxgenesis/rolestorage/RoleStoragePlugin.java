@@ -1,13 +1,20 @@
 package net.foxgenesis.rolestorage;
 
+import java.util.EnumSet;
+
 import net.foxgenesis.util.resource.ConfigType;
 import net.foxgenesis.watame.WatameBot;
 import net.foxgenesis.watame.plugin.IEventStore;
 import net.foxgenesis.watame.plugin.Plugin;
-import net.foxgenesis.watame.plugin.PluginConfiguration;
 import net.foxgenesis.watame.plugin.SeverePluginException;
+import net.foxgenesis.watame.plugin.require.PluginConfiguration;
+import net.foxgenesis.watame.plugin.require.RequiresIntents;
+import net.foxgenesis.watame.plugin.require.RequiresMemberCachePolicy;
 
 import org.apache.commons.configuration2.Configuration;
+
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 /**
  * A {@link WatameBot} plugin used for storing roles of guild members.
@@ -16,7 +23,7 @@ import org.apache.commons.configuration2.Configuration;
  *
  */
 @PluginConfiguration(defaultFile = "/META-INF/worker.ini", identifier = "worker", outputFile = "worker.ini", type = ConfigType.INI)
-public class RoleStoragePlugin extends Plugin {
+public class RoleStoragePlugin extends Plugin implements RequiresIntents, RequiresMemberCachePolicy {
 
 	/**
 	 * Listener for role updates
@@ -32,7 +39,7 @@ public class RoleStoragePlugin extends Plugin {
 		for (String id : configurationKeySet()) {
 			Configuration config = getConfiguration(id);
 			switch (id) {
-				case "worker" -> { size = config.getInt("batchSize", size); }
+				case "worker" -> { size = config.getInt("BatchWorker.batchSize", size); }
 			}
 		}
 
@@ -43,7 +50,7 @@ public class RoleStoragePlugin extends Plugin {
 	protected void preInit() {
 		try {
 			database = new RoleStorageDatabase(batchSize);
-			WatameBot.INSTANCE.getDatabaseManager().register(this, database);
+			registerDatabase(database);
 		} catch (Exception e) {
 			throw new SeverePluginException(e, true);
 		}
@@ -56,17 +63,27 @@ public class RoleStoragePlugin extends Plugin {
 	}
 
 	@Override
-	protected void postInit(WatameBot bot) {}
+	protected void postInit() {}
 
 	@Override
-	protected void onReady(WatameBot bot) {
+	protected void onReady() {
 		// Perform initial scan of all guilds in cache
-		guildListener.initialScan(bot.getJDA().getGuildCache());
+		guildListener.initialScan(WatameBot.getJDA().getGuildCache());
 	}
 
 	@Override
 	protected void close() throws Exception {
 		if (guildListener != null)
 			guildListener.close();
+	}
+
+	@Override
+	public EnumSet<GatewayIntent> getRequiredIntents() {
+		return EnumSet.of(GatewayIntent.GUILD_MEMBERS);
+	}
+
+	@Override
+	public MemberCachePolicy getPolicy() {
+		return MemberCachePolicy.ALL;
 	}
 }
