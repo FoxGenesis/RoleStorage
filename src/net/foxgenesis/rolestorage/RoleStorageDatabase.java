@@ -9,14 +9,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import javax.sql.DataSource;
+import net.foxgenesis.database.AbstractDatabase;
+import net.foxgenesis.rolestorage.BatchWorker.BatchData;
+import net.foxgenesis.util.resource.ModuleResource;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.foxgenesis.database.AbstractDatabase;
-import net.foxgenesis.rolestorage.BatchWorker.BatchData;
-import net.foxgenesis.util.resource.ModuleResource;
 
 /**
  * Custom database class used for storing roles of guild members.
@@ -50,8 +49,6 @@ public class RoleStorageDatabase extends AbstractDatabase {
 	/**
 	 * Create a new instance using the provided DataSource and specified threshold.
 	 * 
-	 * @param provider  - Provider to create a {@link DataSource} to be used in this
-	 *                  database
 	 * @param batchSize - threshold for batch updates
 	 */
 	public RoleStorageDatabase(int batchSize) {
@@ -103,7 +100,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			}).orElse(List.of());
 		} catch (SQLException e) {
 			logger.error("Error while getting member roles", e);
-			return null;
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -124,6 +121,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			});
 		} catch (SQLException e) {
 			logger.error("Error while removing guild", e);
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -145,6 +143,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			});
 		} catch (SQLException e) {
 			logger.error("Error while removing guild", e);
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -175,6 +174,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			});
 		} catch (SQLException e) {
 			logger.error("Error while updating member roles", e);
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -205,6 +205,7 @@ public class RoleStorageDatabase extends AbstractDatabase {
 			});
 		} catch (SQLException e) {
 			logger.error("Error while updating member roles", e);
+			throw new RuntimeException(e);
 		}
 	}
 

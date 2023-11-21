@@ -1,5 +1,6 @@
 package net.foxgenesis.rolestorage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,7 +21,6 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -40,6 +40,9 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	 */
 	private static final Logger logger = LoggerFactory.getLogger("Role Storage Listener");
 
+	/**
+	 * Property to enable/disable role storage
+	 */
 	private PluginProperty enabled;
 
 	/**
@@ -53,10 +56,6 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 	public GuildListener(Plugin plugin, PluginPropertyProvider provider, RoleStorageDatabase database) {
 		this.database = Objects.requireNonNull(database);
 		enabled = provider.upsertProperty(plugin, "enabled", true, PropertyType.NUMBER);
-	}
-	
-	void setPropertys(PluginProperty enabled) {
-		this.enabled = enabled;
 	}
 
 	@Override
@@ -77,7 +76,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 			Member bot = guild.getSelfMember();
 
 			if (bot.hasPermission(Permission.MANAGE_ROLES)) {
-				List<Role> roles = database.getAllMemberRolesInGuild(member, bot::canInteract);
+				List<Role> roles = database.getAllMemberRolesInGuild(member, role -> role != null && bot.canInteract(role) && !role.isManaged());
 				if (!roles.isEmpty()) {
 					logger.debug("Giving roles {} to {} in {}", roles, member, guild);
 					guild.modifyMemberRoles(member, roles).queue();
@@ -92,8 +91,8 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 
 		if (enabled.get(guild, () -> false, PropertyMapping::getAsBoolean)) {
 			Member member = event.getMember();
-			List<Role> roles = event.getRoles();
-
+			List<Role> roles = new ArrayList<>(event.getRoles());
+			roles.removeIf(Role::isManaged);
 			logger.debug("Adding roles ({}) for {} in {}", roles, member, guild);
 			database.addMemberRoles(member, roles);
 		}
@@ -110,14 +109,6 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 			logger.debug("Removing roles ({}) for {} in {}", roles, member, guild);
 			database.removeMemberRoles(member, roles);
 		}
-	}
-
-	@Override
-	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
-		// Guild guild = event.getGuild();
-		// if (RoleStoragePlugin.enabled.optFrom(guild)) {
-		// // TODO on guild member leave, set roles if caching is enabled
-		// }
 	}
 
 	@Override
@@ -153,11 +144,7 @@ public class GuildListener extends ListenerAdapter implements AutoCloseable {
 				long startTime = System.currentTimeMillis();
 
 				guild.getMemberCache().acceptStream(stream -> {
-					// FIXME WHY WONT U LET ME DO PARALLEL AAAAAAAAAA
-					// if(guild.getMemberCount() > 1024)
-					// stream = stream.parallel();
-
-					stream.forEach(member -> worker.addMemberRoles(member, member.getRoles()));
+					stream.forEach(member -> worker.addMemberRoles(member, member.getRoles().stream().filter(r -> !r.isManaged()).toList()));
 					double end = (System.currentTimeMillis() - startTime) / 1000D;
 					logger.info("Finished scanning {} for roles in {}", guild.getName(), "%.2f ms".formatted(end));
 				});
