@@ -7,5 +7,5 @@ module watamebot.rolestorage {
 	requires transitive java.sql;
 	requires transitive org.slf4j;
 
-	provides net.foxgenesis.watame.plugin.Plugin with net.foxgenesis.rolestorage.RoleStoragePlugin;
+	provides net.foxgenesis.watame.plugin.Plugin with net.foxgenesis.rolestorage.RoleStorage;
 }
